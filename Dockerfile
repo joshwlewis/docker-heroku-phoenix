@@ -1,16 +1,13 @@
 # Inherit from Heroku's stack
 FROM heroku/cedar:14
 
-# Internally, we arbitrarily use port 3000
-ENV PORT 3000
-
 # Elixir needs to be compiled against UTF-8
 ENV LANG en_US.UTF-8
 
 # Various dependency versions
-ENV ERLANG_ENGINE 18.1
+ENV ERLANG_ENGINE 18.1.2
 ENV ELIXIR_ENGINE 1.1.1
-ENV NODE_ENGINE 0.12.2
+ENV NODE_ENGINE 4.2.1
 
 # Make sure we have erlang, elixir, and node binaries on our execution path
 ENV PATH /app/phoenix/bin:/app/user/node_modules/.bin:$PATH
@@ -50,5 +47,5 @@ RUN echo "export PATH=\"/app/phoenix/bin:/app/user/node_modules/.bin:\$PATH\"" >
 RUN echo `elixir --version` && echo `node --version` && echo `npm --version`
 
 ONBUILD ADD . /app/user/
+ONBUILD RUN mix deps.get && mix deps.compile
 ONBUILD RUN npm install
-ONBUILD RUN mix deps.get
