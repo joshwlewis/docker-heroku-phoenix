@@ -29,7 +29,7 @@ WORKDIR /app/tmp/elixir
 RUN curl -s https://codeload.github.com/elixir-lang/elixir/tar.gz/v$ELIXIR_ENGINE \
     | tar --strip-components=1 -xz -C .
 RUN make && make test && make install PREFIX=/app/phoenix
-RUN mix local.hex && mix local.rebar
+RUN mix local.hex --force && mix local.rebar --force
 
 # NodeJS
 WORKDIR /app/tmp/nodejs
