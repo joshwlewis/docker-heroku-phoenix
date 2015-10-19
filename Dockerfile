@@ -57,14 +57,10 @@ RUN mkdir -p /tmp/node \
     && make install \
     && rm -rf /tmp/node
 
-# Add package manifests
-ONBUILD ADD mix.exs /app
-ONBUILD ADD package.json /app
+# Add the app files
+ONBUILD ADD . /app/
 
-# Install packages
-ONBUILD RUN mix deps.get
-ONBUILD RUN npm install
-
-# Add the rest of the app and compile
-ONBUILD ADD . /app
-ONBUILD RUN mix compile
+# Install packages and compile
+ONBUILD RUN mix deps.get \
+            && mix compile \
+            && npm install
