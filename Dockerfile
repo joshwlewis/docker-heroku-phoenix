@@ -7,15 +7,17 @@ ENV LANG en_US.UTF-8
 
 # To be compatible with the Heroku platform, everything needs to be in /app
 ENV HOME /app
-WORKDIR /app
 
-# Create our dependency directory
+# The app will exist in /app/user so it can be mounted as a volume
+WORKDIR /app/user
+
+# Setup a place for our runtimes
 RUN mkdir -p /app/docker-heroku-phoenix
 
 # Make sure we have erlang, elixir, and node binaries on our execution path
-ENV PATH /app/docker-heroku-phoenix/bin:/app/node_modules/.bin:$PATH
+ENV PATH /app/docker-heroku-phoenix/bin:/app/user/node_modules/.bin:$PATH
 RUN mkdir -p /app/.profile.d \
-    && echo "export PATH=\"/app/docker-heroku-phoenix/bin:/app/node_modules/.bin:\$PATH\"" \
+    && echo "export PATH=\"/app/docker-heroku-phoenix/bin:/app/user/node_modules/.bin:\$PATH\"" \
     >  /app/.profile.d/docker-heroku-phoenix.sh
 
 # Install Erlang/OTP
@@ -57,10 +59,10 @@ RUN mkdir -p /tmp/node \
     && make install \
     && rm -rf /tmp/node
 
-# Add the app files
-ONBUILD ADD . /app/
+# Add package manifest first to cache dependencies during successive builds
+ONBUILD COPY ["mix.exs", "mix.lock", "package.json", "/app/user/"]
+ONBUILD RUN mix deps.get && npm install
 
-# Install packages and compile
-ONBUILD RUN mix deps.get \
-            && mix compile \
-            && npm install
+# Add the rest of the app and compile
+ONBUILD ADD . /app/user/
+ONBUILD RUN MIX_ENV=prod mix compile

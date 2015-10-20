@@ -29,19 +29,48 @@ Then you'll need a Phoenix-like project. At a bare minimum, you'll need a
 `mix.exs` and a `package.json` to use this image. `mix phoenix.new` would
 have created those for you.
 
-Next create a `Dockerfile` in the root of your project that looks like this:
+Next, you'll need a `Dockerfile` and a `docker-compose.yml`. You can either
+create these manually (examples below), or you can generate them with
+`heroku docker:init`.
+
+To generate the files, first you'll need a `Procfile`. It should look like
+this for a Phoenix app:
+
+```
+web: mix phoenix.server
+console iex -S mix phoenix.server
+```
+
+Then you'll need an `app.json`. It should look something like this:
+
+```
+{
+  "name": "My App",
+  "description": "My App runs on Heroku Docker and Phoenix",
+  "image": "joshwlewis/heroku-docker-phoenix",
+  "addons": [
+    "heroku-postgresql"
+  ]
+}
+```
+
+Now, [install heroku-docker](https://github.com/heroku/heroku-docker) (if you
+haven't already) and run `heroku docker:init`. This should generate a 
+`Dockerfile` and a `docker-compose.yml` for you.
+
+Your `Dockerfile` should look like this:
 
 ```Dockerfile
 FROM "joshwlewis/heroku-docker-phoenix"
 ```
 
-And a `docker-compose.yml` that looks like this:
+And your `docker-compose.yml` should look like this:
 
 ```yaml
 web:
   build: .
   command: 'bash -c ''mix phoenix.server'''
-  working_dir: /app
+  working_dir: /app/user
   environment:
     PORT: 4000
     DATABASE_URL: 'postgres://postgres:@herokuPostgresql:5432/postgres'
@@ -69,13 +98,9 @@ image gets built with productionized assets. If you are using Phoenix's brunch
 setup you can just add a line to your Dockerfile:
 
 ```
-RUN "brunch build && mix phoenix.digest"
+RUN "brunch build --production && MIX_ENV=prod mix phoenix.digest"
 ```
 
-To deploy, you'll need to get the docker plugin for Heroku's CLI:
+Now you should be ship your image to heroku:
 
-`heroku plugins:install heroku-docker`
-
-Then you can deploy with:
-
-`heroku docker:release`
+`heroku docker:release --app my-app`
