@@ -58,11 +58,3 @@ RUN mkdir -p /tmp/node \
     && make \
     && make install \
     && rm -rf /tmp/node
-
-# Add package manifest first to cache dependencies during successive builds
-ONBUILD COPY ["mix.exs", "mix.lock", "package.json", "/app/user/"]
-ONBUILD RUN mix deps.get && npm install
-
-# Add the rest of the app and compile
-ONBUILD ADD . /app/user/
-ONBUILD RUN MIX_ENV=prod mix compile

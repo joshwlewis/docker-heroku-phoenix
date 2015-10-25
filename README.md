@@ -93,12 +93,26 @@ Before you go any further, you may need to make some adjustments to your
 project to prepare it for Heroku. There's some great documentation for that
 [here](http://www.phoenixframework.org/docs/heroku).
 
-Additionally, before you deploy your image, you may need to make sure that your
-image gets built with productionized assets. If you are using Phoenix's brunch
-setup you can just add a line to your Dockerfile:
+Additionally, I recommend setting up your `Dockerfile` to get your install
+your packages, build your static assets, and do any compilation. Each project
+has subtle differences (like bower usage) that can't be guessed here. For a 
+vanilla Phoenix project going to prod, you probably want something like this:
 
 ```
-RUN "brunch build --production && MIX_ENV=prod mix phoenix.digest"
+FROM joshwlewis/heroku-docker-phoenix
+
+ENV MIX_ENV prod
+ENV NODE_ENV production
+ENV BRUNCH_ENV production
+
+# Add package manifests and install. Do this first to increase it's chances 
+# of being cached
+COPY ["mix.exs", "package.json", "/app/user"]
+RUN npm install && mix.deps.get
+
+# Add the rest of the app and build/compile
+ADD . /app/user
+RUN mix compile && brunch build && mix phoenix.digest
 ```
 
 Now you should be ship your image to heroku:
