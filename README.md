@@ -17,104 +17,54 @@ built on Elixir and Node that you'd like to deploy to Heroku.
 - Builds and Installs [Node.js](https://nodejs.org) from source.
 - Installs [Hex](https://hex.pm), the package manager for Elixir.
 - Installs [NPM](https://npmjs.org), the package manager for Node.
-- Installs your project's Hex dependencies via `mix deps.get`.
-- Installs your project's npm dependencies via `npm install`.
 
-## Usage:
+## Example Usage:
 
-First, you'll need `docker` and `docker-compose`. If you don't have them, the
-[Docker Toolbox](https://docker.com/toolbox) is a nice way to get them.
-
-Then you'll need a Phoenix-like project. At a bare minimum, you'll need a
-`mix.exs` and a `package.json` to use this image. `mix phoenix.new` would
-have created those for you.
-
-Next, you'll need a `Dockerfile` and a `docker-compose.yml`. You can either
-create these manually (examples below), or you can generate them with
-`heroku docker:init`.
-
-To generate the files, first you'll need a `Procfile`. It should look like
-this for a Phoenix app:
+A Dockerfile for a vanilla Phoenix app going to prod would look like this:
 
 ```
-web: mix phoenix.server
-console iex -S mix phoenix.server
+FROM joshwlewis/docker-heroku-phoenix:latest
+
+# Compile elixir files for production
+ENV MIX_ENV prod
+# This prevents us from installing devDependencies
+ENV NODE_ENV production
+# This causes brunch to build minified and hashed assets
+ENV BRUNCH_ENV production
+
+# We add manifests first, to cache deps on successive rebuilds
+COPY ["mix.exs", "mix.lock", "/app/user/"]
+RUN mix deps.get
+
+# Again, we're caching node_modules if you don't change package.json
+ADD package.json /app/user/
+RUN npm install
+
+# Add the rest of your app, and compile for production
+ADD . /app/user/
+RUN mix compile \
+    && brunch build \
+    && mix phoenix.digest
 ```
 
-Then you'll need an `app.json`. It should look something like this:
+And your docker-compose would look like this:
 
 ```
-{
-  "name": "My App",
-  "description": "My App runs on Heroku Docker and Phoenix",
-  "image": "joshwlewis/heroku-docker-phoenix",
-  "addons": [
-    "heroku-postgresql"
-  ]
-}
-```
-
-Now, [install heroku-docker](https://github.com/heroku/heroku-docker) (if you
-haven't already) and run `heroku docker:init`. This should generate a 
-`Dockerfile` and a `docker-compose.yml` for you.
-
-Your `Dockerfile` should look like this:
-
-```Dockerfile
-FROM "joshwlewis/heroku-docker-phoenix"
-```
-
-And your `docker-compose.yml` should look like this:
-
-```yaml
 web:
   build: .
   command: 'bash -c ''mix phoenix.server'''
+  dockerfile: Dockerfile.prod
   working_dir: /app/user
   environment:
+    LANG: en_US.UTF-8
+    HOST: localhost
     PORT: 4000
-    DATABASE_URL: 'postgres://postgres:@herokuPostgresql:5432/postgres'
+    DATABASE_URL: 'postgres://postgres:@postgres:4000/api_prod'
   ports:
     - '4000:4000'
   links:
-    - herokuPostgresql
-herokuPostgresql:
+    - postgres
+postgres:
   image: postgres
 ```
 
-Now you can start your application with docker-compose:
-
-`docker-compose up web`
-
-You should have access to your app running at <docker-ip>:4000. You can develop
-with your normal workflow.
-
-Before you go any further, you may need to make some adjustments to your
-project to prepare it for Heroku. There's some great documentation for that
-[here](http://www.phoenixframework.org/docs/heroku).
-
-Additionally, I recommend setting up your `Dockerfile` to get your install
-your packages, build your static assets, and do any compilation. Each project
-has subtle differences (like bower usage) that can't be guessed here. For a 
-vanilla Phoenix project going to prod, you probably want something like this:
-
-```
-FROM joshwlewis/heroku-docker-phoenix
-
-ENV MIX_ENV prod
-ENV NODE_ENV production
-ENV BRUNCH_ENV production
-
-# Add package manifests and install. Do this first to increase it's chances 
-# of being cached
-COPY ["mix.exs", "package.json", "/app/user"]
-RUN npm install && mix.deps.get
-
-# Add the rest of the app and build/compile
-ADD . /app/user
-RUN mix compile && brunch build && mix phoenix.digest
-```
-
-Now you should be ship your image to heroku:
-
-`heroku docker:release --app my-app`
